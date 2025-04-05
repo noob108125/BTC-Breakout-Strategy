@@ -1,53 +1,38 @@
-# 📈 BTC Breakout RSI Trend Strategy
+//@version=5
+strategy("BTC Breakout RSI Trend Strategy", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
 
-A backtest-ready Pine Script strategy designed for **Bitcoin (BTC)** and other crypto pairs using **4H charts**.
+// === INPUTS === //
+rangeLength = input.int(30, title="Range Length (Bars)")
+breakoutBuffer = input.float(0.5, title="Breakout Buffer (%)") / 100
+rsiPeriod = input.int(14, title="RSI Period")
+rsiMin = input.int(50, title="Minimum RSI for Long")
+rsiMax = input.int(50, title="Maximum RSI for Short")
+useMAFilter = input.bool(true, title="Filter with 50 EMA?")
+takeProfit = input.float(3.0, title="Take Profit (%)") / 100
+stopLoss = input.float(1.5, title="Stop Loss (%)") / 100
 
-This script captures **breakouts** from consolidation zones, with filters like:
-- ✅ RSI confirmation
-- ✅ 50 EMA trend direction
-- ✅ Take Profit & Stop Loss system
+// === CALCULATIONS === //
+highestHigh = ta.highest(high, rangeLength)
+lowestLow = ta.lowest(low, rangeLength)
+rangeMid = (highestHigh + lowestLow) / 2
 
----
+rsi = ta.rsi(close, rsiPeriod)
+ema50 = ta.ema(close, 50)
 
-## 🔍 Strategy Logic
+// === CONDITIONS === //
+longCond = close > highestHigh * (1 + breakoutBuffer) and rsi > rsiMin and (not useMAFilter or close > ema50)
+shortCond = close < lowestLow * (1 - breakoutBuffer) and rsi < rsiMax and (not useMAFilter or close < ema50)
 
-The strategy identifies when price breaks out of a tight range (default: 30 candles), and enters a trade **only when RSI confirms momentum**.
+// === STRATEGY EXECUTION === //
+strategy.entry("Long", strategy.long, when=longCond)
+strategy.exit("Long TP/SL", from_entry="Long", profit=takeProfit, loss=stopLoss)
 
-### Long Setup:
-- Price closes **above** the highest high of range
-- RSI is **above** a threshold (e.g., 50)
-- Optional: Price is **above EMA 50**
+strategy.entry("Short", strategy.short, when=shortCond)
+strategy.exit("Short TP/SL", from_entry="Short", profit=takeProfit, loss=stopLoss)
 
-### Short Setup:
-- Price closes **below** the lowest low of range
-- RSI is **below** a threshold (e.g., 50)
-- Optional: Price is **below EMA 50**
+// === PLOTTING === //
+plot(highestHigh, color=color.green, title="Range High", linewidth=1)
+plot(lowestLow, color=color.red, title="Range Low", linewidth=1)
+plot(rangeMid, color=color.gray, title="Mid Range", style=plot.style_dotted)
 
----
-
-## ⚙️ Settings
-
-| Parameter           | Description                                 |
-|---------------------|---------------------------------------------|
-| Range Length        | Number of bars to define range              |
-| Breakout Buffer     | Adds % buffer to prevent fakeouts           |
-| RSI Period          | RSI calculation length                      |
-| RSI Min/Max         | Entry filter for longs/shorts               |
-| EMA Filter          | Trend filter using 50 EMA                   |
-| Take Profit / SL    | Risk management in %                        |
-
----
-
-## 📊 Backtest Instructions
-
-1. Open TradingView → Pine Editor  
-2. Paste the contents of `BTC_Breakout_RSI_Trend_Strategy.pine`  
-3. Click “Add to Chart”
-4. Adjust parameters to fit your asset or timeframe
-
----
-
-## 💡 Tips
-- Best on trending pairs (BTC/ETH)
-- Works well on 4H and 1H
-- Combine with other confluence tools (e.g., volume, divergence)
+plot(ema50, color=color.orange, title="EMA 50")
